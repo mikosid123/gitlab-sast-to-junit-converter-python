@@ -1,5 +1,5 @@
 import json
-import xml.etree.ElementTree as ET
+from lxml import etree as ET
 import sys
 
 def create_junit_report(json_data, output_file='junit_report.xml'):
@@ -23,7 +23,7 @@ def create_junit_report(json_data, output_file='junit_report.xml'):
     # Write the XML structure to a file
     tree = ET.ElementTree(testsuites)
     with open(output_file, "wb") as f:
-        tree.write(f, encoding='utf-8', xml_declaration=True)
+        tree.write(f, pretty_print=True, xml_declaration=True, encoding='utf-8')
 
     print(f"JUnit report generated: {output_file}")
 
