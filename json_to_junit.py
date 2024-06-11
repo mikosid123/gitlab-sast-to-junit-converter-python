@@ -1,31 +1,35 @@
 import json
-from lxml import etree as ET
+import xml.etree.ElementTree as ET
 import sys
 
-def create_junit_report(json_data, output_file='junit_report.xml'):
-    # Create the root element for the JUnit report
+def json_to_junit(json_data):
+    # Create the root element 'testsuites'
     testsuites = ET.Element("testsuites")
-    testsuite = ET.SubElement(testsuites, "testsuite", name="TestSuite", tests=str(len(json_data)), failures=str(len(json_data)))
-
-    # Loop through each entry in the JSON data
-    for index, test_case in enumerate(json_data):
-        # Extract test case information (you can adjust these based on your JSON structure)
-        test_name = test_case.get("testName", f"Test-{index}")
-        failure_message = test_case.get("message", "No failure message provided")
+    testsuite = ET.SubElement(testsuites, "testsuite", name="Vulnerabilities", tests=str(len(json_data["vulnerabilities"])))
+    for index, vulnerability in enumerate(json_data["vulnerabilities"]):
+        testcase = ET.SubElement(testsuite, "testcase", classname=vulnerability["category"], name=str(index) + "-" + vulnerability["name"])
         
-        # Create a test case element
-        testcase = ET.SubElement(testsuite, "testcase", name=test_name, classname=test_case.get("classname", "DefaultClass"))
+        failure_text = f"Description: {vulnerability['description']}\n"
+        failure_text += f"File: {vulnerability['location']['file']} (Lines {vulnerability['location']['start_line']}-{vulnerability['location']['end_line']})\n"
+        failure_text += f"Severity: {vulnerability['severity']}\n"
+        failure_text += f"Scanner: {vulnerability['scanner']['name']} ({vulnerability['scanner']['id']})\n"
+        failure_text += f"CVE: {vulnerability['cve']}\n"
+        failure_text += f"Identifiers:\n"
+        
+        for identifier in vulnerability["identifiers"]:
+            failure_text += f"  - {identifier['type']}: {identifier['name']} (Value: {identifier['value']})\n"
+        
+        ET.SubElement(testcase, "failure", message="Vulnerability detected").text = failure_text
 
-        # Add a failure element to the test case
-        failure = ET.SubElement(testcase, "failure", message=failure_message)
-        failure.text = test_case.get("details", "No additional details provided")
+    # Convert the ElementTree to a string
+    junit_xml = ET.tostring(testsuites, encoding="utf-8", method="xml").decode("utf-8")
 
-    # Write the XML structure to a file
-    tree = ET.ElementTree(testsuites)
-    with open(output_file, "wb") as f:
-        tree.write(f, pretty_print=True, xml_declaration=True, encoding='utf-8')
+    # Prettify the XML
+    import xml.dom.minidom
+    dom = xml.dom.minidom.parseString(junit_xml)
+    pretty_xml_as_string = dom.toprettyxml()
 
-    print(f"JUnit report generated: {output_file}")
+    return pretty_xml_as_string
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -38,5 +42,10 @@ if __name__ == "__main__":
     with open(json_file_path, 'r') as f:
         json_data = json.load(f)
 
+    junit_xml = json_to_junit(json_data)
+
     # Create the JUnit report
-    create_junit_report(json_data)
+    with open("junit_report.xml", "w") as file:
+        file.write(junit_xml)
+
+    print("JUnit XML report has been generated and saved as 'junit_report.xml'.")
