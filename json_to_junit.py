@@ -42,6 +42,7 @@ if __name__ == "__main__":
     with open(json_file_path, 'r') as f:
         json_data = json.load(f)
 
+    # Convert the file to JUnit.xml
     junit_xml = json_to_junit(json_data)
 
     # Create the JUnit report
