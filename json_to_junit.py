@@ -3,6 +3,11 @@ import xml.etree.ElementTree as ET
 import sys
 
 def json_to_junit(json_data):
+    # Check if "vulnerabilities" key exists in the JSON data
+    if "vulnerabilities" not in json_data:
+        print("No vulnerabilities found in the JSON data.")
+        return ""
+
     # Create the root element 'testsuites'
     testsuites = ET.Element("testsuites")
     testsuite = ET.SubElement(testsuites, "testsuite", name="Vulnerabilities", tests=str(len(json_data["vulnerabilities"])))
@@ -10,23 +15,24 @@ def json_to_junit(json_data):
         testcase = ET.SubElement(testsuite, "testcase", classname=vulnerability["category"], name=str(index) + "-" + vulnerability["name"])
         
         failure_text = f"Description: {vulnerability['description']}\n"
-        location = vulnerability['location']
-        
+        location = vulnerability.get('location', {})
+
         start_line = location.get('start_line', 'N/A')
         # Get 'end_line' and provide a default if it does not exist
         end_line = location.get('end_line', start_line)
         
-        if 'end_line' in location:
-            failure_text += f"File: {location['file']} (Lines {start_line}-{end_line})\n"
-        else:
-            failure_text += f"File: {location['file']} (Line {start_line})\n"
+        if 'file' in location:
+            if 'end_line' in location:
+                failure_text += f"File: {location['file']} (Lines {start_line}-{end_line})\n"
+            else:
+                failure_text += f"File: {location['file']} (Line {start_line})\n"
         
         failure_text += f"Severity: {vulnerability['severity']}\n"
         failure_text += f"Scanner: {vulnerability['scanner']['name']} ({vulnerability['scanner']['id']})\n"
         failure_text += f"CVE: {vulnerability['cve']}\n"
         failure_text += f"Identifiers:\n"
         
-        for identifier in vulnerability["identifiers"]:
+        for identifier in vulnerability.get("identifiers", []):
             failure_text += f"  - {identifier['type']}: {identifier['name']} (Value: {identifier['value']})\n"
             if 'url' in identifier:
                 failure_text += f"    URL: {identifier['url']}\n"
@@ -62,6 +68,6 @@ if __name__ == "__main__":
         file.write(junit_xml)
 
     print("JUnit XML report has been generated and saved as 'junit_report.xml'.")
-    if len(json_data["vulnerabilities"]) > 0:
+    if "vulnerabilities" in json_data and len(json_data["vulnerabilities"]) > 0:
         print("Vulnerabilities detected. Exiting with status code 1.")
         sys.exit(1)
