@@ -10,7 +10,17 @@ def json_to_junit(json_data):
         testcase = ET.SubElement(testsuite, "testcase", classname=vulnerability["category"], name=str(index) + "-" + vulnerability["name"])
         
         failure_text = f"Description: {vulnerability['description']}\n"
-        failure_text += f"File: {vulnerability['location']['file']} (Lines {vulnerability['location']['start_line']}-{vulnerability['location']['end_line']})\n"
+        location = vulnerability['location']
+        
+        start_line = location.get('start_line', 'N/A')
+        # Get 'end_line' and provide a default if it does not exist
+        end_line = location.get('end_line', start_line)
+        
+        if 'end_line' in location:
+            failure_text += f"File: {location['file']} (Lines {start_line}-{end_line})\n"
+        else:
+            failure_text += f"File: {location['file']} (Line {start_line})\n"
+        
         failure_text += f"Severity: {vulnerability['severity']}\n"
         failure_text += f"Scanner: {vulnerability['scanner']['name']} ({vulnerability['scanner']['id']})\n"
         failure_text += f"CVE: {vulnerability['cve']}\n"
@@ -18,6 +28,8 @@ def json_to_junit(json_data):
         
         for identifier in vulnerability["identifiers"]:
             failure_text += f"  - {identifier['type']}: {identifier['name']} (Value: {identifier['value']})\n"
+            if 'url' in identifier:
+                failure_text += f"    URL: {identifier['url']}\n"
         
         ET.SubElement(testcase, "failure", message="Vulnerability detected").text = failure_text
 
@@ -50,3 +62,6 @@ if __name__ == "__main__":
         file.write(junit_xml)
 
     print("JUnit XML report has been generated and saved as 'junit_report.xml'.")
+    if len(json_data["vulnerabilities"]) > 0:
+        print("Vulnerabilities detected. Exiting with status code 1.")
+        sys.exit(1)
